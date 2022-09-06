@@ -4,13 +4,15 @@ local Path = require'plenary.path'
 local pickers = require'telescope.pickers'
 local finders = require'telescope.finders'
 local conf = require'telescope.config'.values
-local make_entry = require'telescope.make_entry'
 local entry_display = require'telescope.pickers.entry_display'
+
+local backlinks_finder = require'telescope._extensions.markdown-links.backlinks-finder'
 
 local file_patt = '[-%a%d/%._]+%.md'
 local label_patt = '[^]]*'
 local inline_link_patt = "%[(" .. label_patt .. ")%]%((" .. file_patt .. ")%)"
 local ref_link_patt = "%[(" .. label_patt .. ")%]:%s(" .. file_patt .. ")"
+
 
 local function get_buf_links(buf_nr)
   buf_nr = buf_nr or 0
@@ -32,6 +34,7 @@ local function get_buf_links(buf_nr)
 
   return links_arr
 end
+
 
 local function find_links(opts)
   opts = opts or {}
@@ -79,30 +82,40 @@ local function find_links(opts)
   }):find()
 end
 
+local function gen_grep_cmd_list(base_args, filename, depth)
+  local path_prefix = [[(\./)?]]
+
+  for _ = 1, depth do
+    path_prefix =  path_prefix .. [[asdfsdafdsaf]]
+  end
+
+  local path_rg = path_prefix .. string.gsub(filename, '%.', [[\.]])
+
+  return vim.tbl_flatten{
+    base_args,
+    '--max-depth', depth + 1,
+    '-e', [[( |:)]] .. path_rg, -- matching relative links
+    '-e', [[\(]] .. path_rg .. [[\)]], -- matching inline links
+    '--', '.'
+  }
+end
+
 local function find_backlinks(opts)
   opts = opts or {}
 
   local buf_name = vim.api.nvim_buf_get_name(0)
-  opts.cwd = vim.fn.fnamemodify(buf_name, ':h')
   local filename = vim.fn.fnamemodify(buf_name, ':t')
-
-  local vimgrep_args = opts.vimgrep_arguments or conf.vimgrep_arguments
-
-  local command_list = vim.tbl_flatten {
-    vimgrep_args,
-    '--',
-    '(./)?' .. filename,
-  }
-  opts.entry_maker = opts.entry_maker or make_entry.gen_from_vimgrep(opts)
-
-  -- TODO: Oneshot job and entry maker
 
   pickers.new(opts, {
     prompt_title = "Backlinks to " .. filename,
-    finder = finders.new_oneshot_job(command_list, opts),
-    previewer = conf.file_previewer(opts),
+    finder = backlinks_finder(opts),
+    -- previewer = conf.file_previewer(opts),
   }):find()
 end
 
 vim.keymap.set('n', '<leader>l', find_links)
 vim.keymap.set('n', '<leader>b', find_backlinks)
+vim.keymap.set('n', '<leader><leader>r', function ()
+  package.loaded['telescope._extensions.markdown-links'] = nil
+  package.loaded['telescope._extensions.markdown-links.backlinks-finder'] = nil
+end)
