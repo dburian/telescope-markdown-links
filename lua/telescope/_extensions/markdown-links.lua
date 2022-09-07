@@ -118,4 +118,7 @@ vim.keymap.set('n', '<leader>b', find_backlinks)
 vim.keymap.set('n', '<leader><leader>r', function ()
   package.loaded['telescope._extensions.markdown-links'] = nil
   package.loaded['telescope._extensions.markdown-links.backlinks-finder'] = nil
+  require'telescope._extensions.markdown-links'
+  require'telescope._extensions.markdown-links.backlinks-finder'
+  print('RELODED')
 end)
