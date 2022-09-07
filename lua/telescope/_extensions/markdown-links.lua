@@ -82,24 +82,6 @@ local function find_links(opts)
   }):find()
 end
 
-local function gen_grep_cmd_list(base_args, filename, depth)
-  local path_prefix = [[(\./)?]]
-
-  for _ = 1, depth do
-    path_prefix =  path_prefix .. [[asdfsdafdsaf]]
-  end
-
-  local path_rg = path_prefix .. string.gsub(filename, '%.', [[\.]])
-
-  return vim.tbl_flatten{
-    base_args,
-    '--max-depth', depth + 1,
-    '-e', [[( |:)]] .. path_rg, -- matching relative links
-    '-e', [[\(]] .. path_rg .. [[\)]], -- matching inline links
-    '--', '.'
-  }
-end
-
 local function find_backlinks(opts)
   opts = opts or {}
 
@@ -109,7 +91,7 @@ local function find_backlinks(opts)
   pickers.new(opts, {
     prompt_title = "Backlinks to " .. filename,
     finder = backlinks_finder(opts),
-    -- previewer = conf.file_previewer(opts),
+    previewer = conf.grep_previewer(opts),
   }):find()
 end
 
@@ -118,6 +100,7 @@ vim.keymap.set('n', '<leader>b', find_backlinks)
 vim.keymap.set('n', '<leader><leader>r', function ()
   package.loaded['telescope._extensions.markdown-links'] = nil
   package.loaded['telescope._extensions.markdown-links.backlinks-finder'] = nil
+  vim.cmd[[:wa]]
   require'telescope._extensions.markdown-links'
   require'telescope._extensions.markdown-links.backlinks-finder'
   print('RELODED')

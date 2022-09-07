@@ -1,16 +1,11 @@
 local async_job = require "telescope._"
 local async = require'plenary.async'
-local make_entry= require 'telescope.make_entry'
 local Path = require'plenary.path'
 local conf = require'telescope.config'.values
 
 local await_count = 1000
 
 local flatten = vim.tbl_flatten
-
-local function get_backlinks_entry_maker(opts)
-  return make_entry.gen_from_string()
-end
 
 local function is_same_file(reference_path, cwd, link)
   return vim.loop.fs_realpath(Path:new(cwd, link):absolute()) == reference_path
@@ -53,15 +48,18 @@ local function get_rg_multiline_iter(linepipe)
 end
 
 local function ref_entry_maker_from_multiline(entry)
+  -- TODO: Check if the matched link is really the one we're searching for.
   local link_label, link_id = string.match(entry.text, '%[([^]]+)%]%[([^]]+)%]')
+  P(entry.text)
   -- TODO: Globalize displayer
 
   return {
     value = entry,
     display = link_label,
     ordinal = link_label .. entry.path,
-    lnum = entry.lnum,
-    col = entry.col,
+    lnum = tonumber(entry.lnum),
+    -- TODO: Make this more clear.
+    col = tonumber(entry.col) - #link_label - 1,
     path = entry.path
   }
 end
@@ -120,8 +118,8 @@ return function (opts)
   local env = opts.env
   local target_path = opts.target_path or vim.api.nvim_buf_get_name(0)
   local target_cwd = vim.fn.fnamemodify(target_path, ':h')
+  -- TODO: Add option for entry maker
 
-  local entry_maker = opts.entry_maker or get_backlinks_entry_maker(opts)
   local ref_entry_maker = get_ref_entry_maker(target_path)
 
   local results = vim.F.if_nil(opts.results, {})
@@ -188,6 +186,8 @@ return function (opts)
           end
         end
 
+        -- TODO: Think about better code flow in __call.
+
         local ref_entries = {}
         for line in ref_filter_stdout:iter(false) do
           async.util.scheduler()
@@ -202,7 +202,7 @@ return function (opts)
           return {
             conf.vimgrep_arguments,
             '-B', 1,
-            '-e', [=[^[^]]+\]\[]=] .. entry.link_id .. [=[\]]=],
+            '-e', [=[\]\[]=] .. entry.link_id .. [=[\]]=],
             '--',
             Path.new(entry.cwd, entry.filename):absolute(),
             ';'
@@ -210,6 +210,7 @@ return function (opts)
         end, ref_entries)
 
         ref_final_cmds = flatten(ref_final_cmds)
+        P(ref_final_cmds)
 
         async.util.scheduler()
         ref_final_stdout = async_job.LinesPipe()
@@ -227,8 +228,6 @@ return function (opts)
         for match in ref_match_iter do
           async.util.scheduler()
           local entry = ref_entry_maker_from_multiline(match)
-          -- entry = make_entry.gen_from_string(opts)(entry.text)
-          P(entry)
 
           async.util.scheduler()
           result_nr = result_nr + 1
