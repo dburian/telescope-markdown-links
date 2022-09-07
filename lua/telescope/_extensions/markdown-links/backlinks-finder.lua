@@ -50,11 +50,29 @@ end
 local function ref_entry_maker_from_multiline(entry)
   -- TODO: Check if the matched link is really the one we're searching for.
   local link_label, link_id = string.match(entry.text, '%[([^]]+)%]%[([^]]+)%]')
-  P(entry.text)
   -- TODO: Globalize displayer
 
   return {
     value = entry,
+    display = link_label,
+    ordinal = link_label .. entry.path,
+    lnum = tonumber(entry.lnum),
+    -- TODO: Make this more clear.
+    col = tonumber(entry.col) - #link_label - 1,
+    path = entry.path
+  }
+end
+
+local function inline_entry_maker_from_multiline(entry)
+  -- TODO: Check if the matched link is really the one we're searching for.
+  local link_label, link_target = string.match(entry.text, '%[([^]]+)%]%(([^)]+)%)')
+  -- TODO: Globalize displayer
+
+  return {
+    value = vim.tbl_extend('keep', entry, {
+      label = link_label,
+      target = link_target,
+    }),
     display = link_label,
     ordinal = link_label .. entry.path,
     lnum = tonumber(entry.lnum),
@@ -79,6 +97,24 @@ local function get_ref_rg_cmd(opts, target_path, search_dirs)
     '--',
     search_dirs,
   })
+
+  return {
+    command = 'rg',
+    args = flatten(args)
+  }
+end
+
+local function get_inline_rg_cmd(opts, target_path, search_dirs)
+  local filename = vim.fn.fnamemodify(target_path, ':t')
+
+  local args = {
+    conf.vimgrep_arguments,
+    '-B', 1,
+    -- TODO: Extract regex for all paths.
+    '-e', [[\]\([-_\./A-z0-9]*]] .. string.gsub(filename, '%.', [[\.]]) .. [[\)]],
+    '--',
+    search_dirs
+  }
 
   return {
     command = 'rg',
@@ -153,6 +189,9 @@ return function (opts)
       if ref_final_job then
         ref_final_job:close()
       end
+      if inline_job then
+        inline_job:close()
+      end
       -- TODO: Close all jobs
     end,
     results = results,
@@ -162,19 +201,29 @@ return function (opts)
 
         -- for each directory, create rg commmands for both inline and
         -- reference style links
-        local job_opts = get_ref_rg_cmd(opts, target_path, search_dirs)
+        local ref_job_opts = get_ref_rg_cmd(opts, target_path, search_dirs)
 
         ref_filter_stdout = async_job.LinesPipe()
         ref_filter_job = async_job.spawn {
-          command = job_opts.command,
-          args = job_opts.args,
+          command = ref_job_opts.command,
+          args = ref_job_opts.args,
           cwd = cwd,
           env = env,
 
           stdout = ref_filter_stdout,
         }
 
-        -- TODO: Spawn rg for inline links
+        local inline_job_opts = get_inline_rg_cmd(opts, target_path, search_dirs)
+        inline_stdout = async_job.LinesPipe()
+        inline_job = async_job.spawn {
+          command = inline_job_opts.command,
+          args = inline_job_opts.args,
+          cwd = cwd,
+          env = env,
+
+          stdout = inline_stdout
+        }
+
 
         job_started = true
       end
@@ -195,6 +244,7 @@ return function (opts)
         end
 
         ref_entries = vim.tbl_filter(function (entry)
+          -- TODO: Account for absolute links.
           return is_same_file(target_path, entry.cwd, entry.link)
         end, ref_entries)
 
@@ -210,7 +260,6 @@ return function (opts)
         end, ref_entries)
 
         ref_final_cmds = flatten(ref_final_cmds)
-        P(ref_final_cmds)
 
         async.util.scheduler()
         ref_final_stdout = async_job.LinesPipe()
@@ -229,10 +278,23 @@ return function (opts)
           async.util.scheduler()
           local entry = ref_entry_maker_from_multiline(match)
 
-          async.util.scheduler()
           result_nr = result_nr + 1
           results[result_nr] = entry
           process_result(entry)
+        end
+
+        local inline_match_iter = get_rg_multiline_iter(inline_stdout)
+        for match in inline_match_iter do
+          async.util.scheduler()
+          local entry = inline_entry_maker_from_multiline(match)
+
+          local entry_cwd = vim.fn.fnamemodify(entry.path, ':h')
+          P({target_path, entry_cwd, entry.value.target})
+          if is_same_file(target_path, entry_cwd, entry.value.target) then
+            result_nr = result_nr + 1
+            results[result_nr] = entry
+            process_result(entry)
+          end
         end
 
 
