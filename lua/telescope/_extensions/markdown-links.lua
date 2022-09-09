@@ -39,6 +39,9 @@ end
 local function find_links(opts)
   opts = opts or {}
   local buf_name = vim.api.nvim_buf_get_name(0)
+
+  -- TODO: Check filetype...
+
   opts.cwd = vim.fn.fnamemodify(buf_name, ':h')
   local filename = vim.fn.fnamemodify(buf_name, ':t')
 
@@ -87,6 +90,8 @@ local function find_backlinks(opts)
   opts.cwd = opts.cwd or vim.fn.getcwd()
   opts.target_path = opts.target_path or vim.api.nvim_buf_get_name(0)
 
+  -- TODO: Check filetype...
+
   local target_filename = vim.fn.fnamemodify(opts.target_path, ':t')
 
   pickers.new(opts, {
@@ -102,8 +107,10 @@ vim.keymap.set('n', '<leader>b', find_backlinks)
 vim.keymap.set('n', '<leader><leader>r', function ()
   package.loaded['telescope._extensions.markdown-links'] = nil
   package.loaded['telescope._extensions.markdown-links.backlinks-finder'] = nil
+  package.loaded['telescope._extensions.markdown-links.utils'] = nil
   vim.cmd[[:wa]]
   require'telescope._extensions.markdown-links'
   require'telescope._extensions.markdown-links.backlinks-finder'
+  require'telescope._extensions.markdown-links.utils'
   print('RELODED')
 end)
