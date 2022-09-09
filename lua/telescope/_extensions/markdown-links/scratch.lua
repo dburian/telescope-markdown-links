@@ -1,39 +1,26 @@
 local async_job = require'telescope._'
 local async = require'plenary.async'
 
+local obj = {
+  key = 'value',
+}
+function obj:callback_f(callback)
+  P('f called with self:' .. vim.inspect(self))
+  local timer = vim.loop.new_timer()
+  timer:start(1000, 0, function()
+    P('callback called')
+    callback('This is the result')
+  end)
+end
+
+obj.blocking_f = async.wrap(obj.callback_f, 2)
+
 local test = async.void(function ()
-  P('start')
-  local cwd = '/home/dburian/Documents/wiki'
-
-  local stdout = async_job.LinesPipe()
-  local job_opts = {
-    command = 'rg',
-    args = {
-      '--no-heading',
-      '--smart-case',
-      '--with-filename',
-      -- '-e', 'k',
-      '-e', [=[\[[^]]+\]: *[-_\./A-z0-9]+\.md]=],
-      '--max-depth', 2,
-      '--', '.',
-    },
-  }
-
-  local job = async_job.spawn{
-    command = job_opts.command,
-    args = job_opts.args,
-    cwd = cwd,
-    stdout = stdout,
-  }
-
-
-  for line in stdout:iter(false) do
-    P(line)
-  end
-
-  P('Done')
+  P('void called')
+  local result = obj:blocking_f()
+  P('blocking returned result: ' .. result)
 end)
 
-P('before test')
+P('starting main')
 test()
-P('after test')
+P('ending main')

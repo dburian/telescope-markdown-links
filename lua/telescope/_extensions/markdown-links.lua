@@ -84,14 +84,16 @@ end
 
 local function find_backlinks(opts)
   opts = opts or {}
+  opts.cwd = opts.cwd or vim.fn.getcwd()
+  opts.target_path = opts.target_path or vim.api.nvim_buf_get_name(0)
 
-  local buf_name = vim.api.nvim_buf_get_name(0)
-  local filename = vim.fn.fnamemodify(buf_name, ':t')
+  local target_filename = vim.fn.fnamemodify(opts.target_path, ':t')
 
   pickers.new(opts, {
-    prompt_title = "Backlinks to " .. filename,
+    prompt_title = "Backlinks to " .. target_filename,
     finder = backlinks_finder(opts),
     previewer = conf.grep_previewer(opts),
+    sorter = conf.generic_sorter(opts),
   }):find()
 end
 
