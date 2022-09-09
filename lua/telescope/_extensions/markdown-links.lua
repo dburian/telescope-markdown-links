@@ -1,5 +1,5 @@
-
 local Path = require'plenary.path'
+local utils= require 'telescope._extensions.markdown-links.utils'
 
 local pickers = require'telescope.pickers'
 local finders = require'telescope.finders'
@@ -40,7 +40,10 @@ local function find_links(opts)
   opts = opts or {}
   local buf_name = vim.api.nvim_buf_get_name(0)
 
-  -- TODO: Check filetype...
+  if not utils.is_markdown() then
+    print("telescope-markdown-links: Must be in a markdown buffer.")
+    return
+  end
 
   opts.cwd = vim.fn.fnamemodify(buf_name, ':h')
   local filename = vim.fn.fnamemodify(buf_name, ':t')
@@ -90,7 +93,10 @@ local function find_backlinks(opts)
   opts.cwd = opts.cwd or vim.fn.getcwd()
   opts.target_path = opts.target_path or vim.api.nvim_buf_get_name(0)
 
-  -- TODO: Check filetype...
+  if not utils.is_markdown() then
+    print("telescope-markdown-links: Must be in a markdown buffer.")
+    return
+  end
 
   local target_filename = vim.fn.fnamemodify(opts.target_path, ':t')
 
@@ -102,15 +108,9 @@ local function find_backlinks(opts)
   }):find()
 end
 
-vim.keymap.set('n', '<leader>l', find_links)
-vim.keymap.set('n', '<leader>b', find_backlinks)
-vim.keymap.set('n', '<leader><leader>r', function ()
-  package.loaded['telescope._extensions.markdown-links'] = nil
-  package.loaded['telescope._extensions.markdown-links.backlinks-finder'] = nil
-  package.loaded['telescope._extensions.markdown-links.utils'] = nil
-  vim.cmd[[:wa]]
-  require'telescope._extensions.markdown-links'
-  require'telescope._extensions.markdown-links.backlinks-finder'
-  require'telescope._extensions.markdown-links.utils'
-  print('RELODED')
-end)
+return require'telescope'.register_extension{
+  exports = {
+    find_links = find_links,
+    find_backlinks = find_backlinks,
+  }
+}

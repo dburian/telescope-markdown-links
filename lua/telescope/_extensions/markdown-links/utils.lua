@@ -61,4 +61,25 @@ function M.get_rg_multiline_match_iter(linespipe, match_factory)
   end
 end
 
+function M.is_markdown()
+  return vim.bo.filetype == 'markdown'
+end
+
+function M.setup_debug()
+  -- Purely for my convenience.
+
+  vim.keymap.set('n', '<leader>l', require'telescope._extensions.markdown-links'.find_links)
+  vim.keymap.set('n', '<leader>b', require'telescope._extensions.markdown-links'.find_backlinks)
+  vim.keymap.set('n', '<leader><leader>r', function ()
+    package.loaded['telescope._extensions.markdown-links'] = nil
+    package.loaded['telescope._extensions.markdown-links.backlinks-finder'] = nil
+    package.loaded['telescope._extensions.markdown-links.utils'] = nil
+    vim.cmd[[:wa]]
+    require'telescope._extensions.markdown-links'
+    require'telescope._extensions.markdown-links.backlinks-finder'
+    require'telescope._extensions.markdown-links.utils'
+    print('RELODED')
+  end)
+end
+
 return M

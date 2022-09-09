@@ -1,7 +1,9 @@
-local async_job = require "telescope._"
 local async = require'plenary.async'
 local Path = require'plenary.path'
+
+local async_job = require "telescope._"
 local conf = require'telescope.config'.values
+local entry_display = require'telescope.pickers.entry_display'
 
 local utils = require'telescope._extensions.markdown-links.utils'
 
@@ -97,9 +99,14 @@ function BacklinksJob:is_completed()
   return self._is_completed
 end
 
+function BacklinksJob:close(force)
+  self._ref_filter_job:close(force)
+  self._ref_final_job:close(force)
+  self._inline_job:close(force)
+end
 
--- Asynchronously runs the job, calling back when the job is done.
-function BacklinksJob:_run_async()
+
+function BacklinksJob:_run()
   self._ref_filter_job = async_job.spawn(self._ref_filter_opts)
   self._inline_job = async_job.spawn(self._inline_opts)
   local ref_final_stdout = async_job.LinesPipe()
@@ -193,9 +200,7 @@ function BacklinksJob:_run_async()
   self._process_complete()
 end
 
-BacklinksJob._run = BacklinksJob._run_async
-
---- Runs the job with blocking call.
+--- Runs the job.
 function BacklinksJob:run()
   self._is_running = true
   self._has_started = true
@@ -213,9 +218,22 @@ function BacklinksJob:refresh(new_process_result, new_process_complete)
   self._process_complete = new_process_complete
 end
 
-
-
 local function get_backlinks_entry_maker(opts)
+  local displayer = entry_display.create {
+    separator = " ",
+    items = {
+      {},
+      {},
+    }
+  }
+
+  local make_display = opts.make_display or function (entry)
+    return displayer {
+      Path:new(entry.path):make_relative(opts.cwd),
+      {'[' .. entry.value.label .. ']', "TelescopeResultsComment" },
+    }
+  end
+
   return function (match)
     local col = match.col - #match.label - 2
     local lnum = match.lnum
@@ -226,8 +244,7 @@ local function get_backlinks_entry_maker(opts)
 
     return {
       value = match,
-      -- TODO: Displayer
-      display = Path:new(match.path):shorten() .. ': ' .. match.label,
+      display = make_display,
       ordinal = table.concat({
         match.path,
         match.lnum,
@@ -261,9 +278,8 @@ return function (opts)
 
   return setmetatable({
     close = function ()
-      -- TODO: Think about what happens here..
+      job:close()
     end,
-    results = results,
   }, {
     __call = function (_, _, process_result, process_complete)
       -- Always publish all results we have so far.
