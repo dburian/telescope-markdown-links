@@ -50,11 +50,6 @@ local function find_links(opts)
 
   local links = get_buf_links()
 
-  local longest_target = 0
-  for _, link in ipairs(links) do
-    longest_target = math.max(longest_target, #link.target)
-  end
-
   local displayer = entry_display.create {
     separator = " ",
     items = {
@@ -74,11 +69,11 @@ local function find_links(opts)
     prompt_title = "Links in " .. filename,
     finder = finders.new_table{
       results = links,
-      entry_maker = function (link)
+      entry_maker = opts.entry_maker or function (link)
         return {
           value = link,
           display = make_display,
-          ordinal = link.target,
+          ordinal = link.target .. ':' .. link.label,
           path = Path:new(opts.cwd, link.target):absolute(),
         }
       end,
