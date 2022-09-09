@@ -100,9 +100,15 @@ function BacklinksJob:is_completed()
 end
 
 function BacklinksJob:close(force)
-  self._ref_filter_job:close(force)
-  self._ref_final_job:close(force)
-  self._inline_job:close(force)
+  if self._ref_filter_job then
+    self._ref_filter_job:close(force)
+  end
+  if self._ref_final_job then
+    self._ref_final_job:close(force)
+  end
+  if self._inline_job then
+    self._inline_job:close(force)
+  end
 end
 
 
