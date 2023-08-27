@@ -1,12 +1,12 @@
-local Path = require'plenary.path'
-local utils= require 'telescope._extensions.markdown-links.utils'
+local Path = require 'plenary.path'
+local utils = require 'telescope._extensions.markdown-links.utils'
 
-local pickers = require'telescope.pickers'
-local finders = require'telescope.finders'
-local conf = require'telescope.config'.values
-local entry_display = require'telescope.pickers.entry_display'
+local pickers = require 'telescope.pickers'
+local finders = require 'telescope.finders'
+local conf = require 'telescope.config'.values
+local entry_display = require 'telescope.pickers.entry_display'
 
-local backlinks_finder = require'telescope._extensions.markdown-links.backlinks-finder'
+local backlinks_finder = require 'telescope._extensions.markdown-links.finders.backlinks'
 
 local file_patt = '[-%a%d/%._]+%.md'
 local label_patt = '[^]]*'
@@ -35,7 +35,6 @@ local function get_buf_links(buf_nr)
   return links_arr
 end
 
-
 local function find_links(opts)
   opts = opts or {}
   local buf_name = vim.api.nvim_buf_get_name(0)
@@ -58,18 +57,18 @@ local function find_links(opts)
     }
   }
 
-  local make_display = function (entry)
+  local make_display = function(entry)
     return displayer {
       entry.value.target,
-      {'[' .. entry.value.label .. ']', "TelescopeResultsComment" },
-      }
+      { '[' .. entry.value.label .. ']', "TelescopeResultsComment" },
+    }
   end
 
   pickers.new(opts, {
     prompt_title = "Links in " .. filename,
-    finder = finders.new_table{
+    finder = finders.new_table {
       results = links,
-      entry_maker = opts.entry_maker or function (link)
+      entry_maker = opts.entry_maker or function(link)
         return {
           value = link,
           display = make_display,
@@ -103,7 +102,7 @@ local function find_backlinks(opts)
   }):find()
 end
 
-return require'telescope'.register_extension{
+return require 'telescope'.register_extension {
   exports = {
     find_links = find_links,
     find_backlinks = find_backlinks,
